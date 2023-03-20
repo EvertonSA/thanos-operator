@@ -47,7 +47,7 @@ func (s *storeInstance) deployment() (runtime.Object, reconciler.DesiredState, e
 					ObjectMeta: s.getMeta(),
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
-							corev1.Container{
+							{
 								Name:  v1alpha1.StoreName,
 								Image: fmt.Sprintf("%s:%s", v1alpha1.ThanosImageRepository, v1alpha1.ThanosImageTag),
 								Args: []string{
@@ -68,8 +68,8 @@ func (s *storeInstance) deployment() (runtime.Object, reconciler.DesiredState, e
 								},
 								VolumeMounts:    s.getVolumeMounts(),
 								ImagePullPolicy: corev1.PullIfNotPresent,
-								LivenessProbe:   s.GetCheck(resources.GetPort(storeGateway.HttpAddress), resources.HealthCheckPath),
-								ReadinessProbe:  s.GetCheck(resources.GetPort(storeGateway.HttpAddress), resources.ReadyCheckPath),
+								LivenessProbe:   resources.GetProbe(resources.GetPort(storeGateway.HttpAddress), resources.HealthCheckPath),
+								ReadinessProbe:  resources.GetProbe(resources.GetPort(storeGateway.HttpAddress), resources.ReadyCheckPath),
 							},
 						},
 						Volumes: s.getVolumes(),

@@ -40,7 +40,7 @@ type ComponentReconciler func() (*reconcile.Result, error)
 // Resource redeclaration of function with return type kubernetes Object
 type Resource func() (runtime.Object, reconciler.DesiredState, error)
 
-type Labels map[string]string
+type Labels = map[string]string
 
 func Dispatch(rr reconciler.ResourceReconciler, resourceList []Resource) (*reconcile.Result, error) {
 	for _, res := range resourceList {
@@ -60,13 +60,4 @@ func Dispatch(rr reconciler.ResourceReconciler, resourceList []Resource) (*recon
 		}
 	}
 	return nil, nil
-}
-
-func (l Labels) Merge(labelGroups ...Labels) Labels {
-	for _, labels := range labelGroups {
-		for k, v := range labels {
-			l[k] = v
-		}
-	}
-	return l
 }

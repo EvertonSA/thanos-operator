@@ -28,9 +28,8 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1beta1"
+	netv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,9 +41,8 @@ import (
 
 // ThanosReconciler reconciles a Thanos object
 type ThanosReconciler struct {
-	client.Client
+	Client client.Client
 	Log    logr.Logger
-	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=monitoring.banzaicloud.io,resources=thanos,verbs=get;list;watch;create;update;patch;delete

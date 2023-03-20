@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package receiver
+package resources
 
-import (
-	"encoding/json"
-	"testing"
+import "strings"
 
-	"github.com/stretchr/testify/require"
-)
-
-func TestHashRingGroupMarshal(t *testing.T) {
-	input := []HashRingGroup{
-		{
-			HashRing:  "test",
-			Endpoints: []string{"endpoint1", "endpoint2"},
-			Tenants:   []string{"test"},
-		},
+func QualifiedName(parts ...string) string {
+	var b strings.Builder
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if b.Len() > 0 {
+			_, _ = b.WriteString("-")
+		}
+		_, _ = b.WriteString(part)
 	}
-	expected := `[{"hashring":"test","endpoints":["endpoint1","endpoint2"],"tenants":["test"]}]`
-	result, err := json.Marshal(input)
-	require.NoError(t, err)
-	require.Equal(t, expected, string(result))
+	return b.String()
 }

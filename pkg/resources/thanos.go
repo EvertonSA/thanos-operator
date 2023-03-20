@@ -40,22 +40,12 @@ func GetPort(address string) int32 {
 	return 0
 }
 
-type ThanosComponentReconciler struct {
-	Thanos         *v1alpha1.Thanos
-	ThanosList     []v1alpha1.Thanos
-	StoreEndpoints []v1alpha1.StoreEndpoint
-	*reconciler.GenericResourceReconciler
-}
-
-func (t *ThanosComponentReconciler) GetCheck(port int32, path string) *corev1.Probe {
+func GetProbe(port int32, path string) *corev1.Probe {
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: path,
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: port,
-				},
+				Port: intstr.FromInt(int(port)),
 			},
 		},
 		InitialDelaySeconds: 5,
@@ -64,6 +54,13 @@ func (t *ThanosComponentReconciler) GetCheck(port int32, path string) *corev1.Pr
 		SuccessThreshold:    1,
 		FailureThreshold:    2,
 	}
+}
+
+type ThanosComponentReconciler struct {
+	Thanos         *v1alpha1.Thanos
+	ThanosList     []v1alpha1.Thanos
+	StoreEndpoints []v1alpha1.StoreEndpoint
+	*reconciler.GenericResourceReconciler
 }
 
 func (t *ThanosComponentReconciler) GetCommonLabels() Labels {
@@ -76,19 +73,15 @@ func (t *ThanosComponentReconciler) QualifiedName(name string) string {
 	return fmt.Sprintf("%s-%s", t.Thanos.Name, name)
 }
 
-func (t *ThanosComponentReconciler) GetNameMeta(name string, namespaceOverride string) metav1.ObjectMeta {
-	namespace := t.Thanos.Namespace
-	if namespaceOverride != "" {
-		namespace = namespaceOverride
-	}
+func (t *ThanosComponentReconciler) GetNameMeta(name string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:      name,
-		Namespace: namespace,
+		Namespace: t.Thanos.Namespace,
 	}
 }
 
-func (t *ThanosComponentReconciler) GetObjectMeta(name string, namespaceOverride string) metav1.ObjectMeta {
-	meta := t.GetNameMeta(name, namespaceOverride)
+func (t *ThanosComponentReconciler) GetObjectMeta(name string) metav1.ObjectMeta {
+	meta := t.GetNameMeta(name)
 	meta.OwnerReferences = []metav1.OwnerReference{
 		{
 			APIVersion: t.Thanos.APIVersion,

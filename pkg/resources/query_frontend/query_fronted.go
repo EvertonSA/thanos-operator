@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/banzaicloud/operator-tools/pkg/utils"
 	"github.com/banzaicloud/thanos-operator/pkg/resources"
 	"github.com/banzaicloud/thanos-operator/pkg/resources/query"
 	"github.com/banzaicloud/thanos-operator/pkg/sdk/api/v1alpha1"
@@ -53,12 +54,12 @@ func (q *QueryFrontend) Reconcile() (*reconcile.Result, error) {
 }
 
 func (q *QueryFrontend) getLabels() resources.Labels {
-	labels := resources.Labels{
-		resources.NameLabel: v1alpha1.QueryFrontendName,
-	}.Merge(
+	return utils.MergeLabels(
+		resources.Labels{
+			resources.NameLabel: v1alpha1.QueryFrontendName,
+		},
 		q.GetCommonLabels(),
 	)
-	return labels
 }
 
 func (q *QueryFrontend) getName(suffix ...string) string {
@@ -77,12 +78,8 @@ func (q *QueryFrontend) GetHTTPServiceURL() string {
 	return fmt.Sprintf("http://%s:%d", q.GetHTTPService(), resources.GetPort(q.Thanos.Spec.QueryFrontend.HttpAddress))
 }
 
-func (q *QueryFrontend) getMeta(name string, params ...string) metav1.ObjectMeta {
-	namespace := ""
-	if len(params) > 0 {
-		namespace = params[0]
-	}
-	meta := q.GetObjectMeta(name, namespace)
+func (q *QueryFrontend) getMeta(name string) metav1.ObjectMeta {
+	meta := q.GetObjectMeta(name)
 	meta.Labels = q.getLabels()
 	return meta
 }

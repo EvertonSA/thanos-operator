@@ -24,9 +24,8 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1beta1"
+	netv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,9 +35,8 @@ import (
 
 // ObjectStoreReconciler reconciles a ObjectStore object
 type ObjectStoreReconciler struct {
-	client.Client
+	Client client.Client
 	Log    logr.Logger
-	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=monitoring.banzaicloud.io,resources=objectstores,verbs=get;list;watch;create;update;patch;delete

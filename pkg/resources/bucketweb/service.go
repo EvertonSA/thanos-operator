@@ -33,13 +33,10 @@ func (b *BucketWeb) service() (runtime.Object, reconciler.DesiredState, error) {
 			Spec: corev1.ServiceSpec{
 				Ports: []corev1.ServicePort{
 					{
-						Protocol: corev1.ProtocolTCP,
-						Name:     "http",
-						Port:     resources.GetPort(bucketWeb.HTTPAddress),
-						TargetPort: intstr.IntOrString{
-							Type:   intstr.Int,
-							IntVal: resources.GetPort(bucketWeb.HTTPAddress),
-						},
+						Protocol:   corev1.ProtocolTCP,
+						Name:       "http",
+						Port:       resources.GetPort(bucketWeb.HTTPAddress),
+						TargetPort: intstr.FromInt(int(resources.GetPort(bucketWeb.HTTPAddress))),
 					},
 				},
 				Selector: b.getLabels(),
@@ -51,6 +48,15 @@ func (b *BucketWeb) service() (runtime.Object, reconciler.DesiredState, error) {
 				return service, reconciler.StatePresent, errors.WrapIf(err, "unable to merge overrides to service base")
 			}
 		}
+
+		return service, reconciler.DesiredStateHook(func(current runtime.Object) error {
+			if s, ok := current.(*corev1.Service); ok {
+				service.Spec.ClusterIP = s.Spec.ClusterIP
+			} else {
+				return errors.Errorf("failed to cast service object %+v", current)
+			}
+			return nil
+		}), nil
 	}
 
 	return &corev1.Service{

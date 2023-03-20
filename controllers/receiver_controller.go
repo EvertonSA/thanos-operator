@@ -18,27 +18,35 @@ import (
 	"context"
 
 	"github.com/banzaicloud/operator-tools/pkg/reconciler"
-	"github.com/banzaicloud/thanos-operator/pkg/resources"
-	"github.com/banzaicloud/thanos-operator/pkg/resources/receiver"
+	monitoringv1alpha1 "github.com/banzaicloud/thanos-operator/pkg/sdk/api/v1alpha1"
 	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1beta1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
-	monitoringv1alpha1 "github.com/banzaicloud/thanos-operator/pkg/sdk/api/v1alpha1"
+	"github.com/banzaicloud/thanos-operator/pkg/resources/receiver"
 )
+
+func NewReceiverReconciler(client client.Client, logger logr.Logger) *ReceiverReconciler {
+	return &ReceiverReconciler{
+		NativeReconciler: reconciler.NewNativeReconciler(
+			monitoringv1alpha1.ReceiverName,
+			reconciler.NewGenericReconciler(client, logger, reconciler.ReconcilerOpts{}),
+			client,
+			receiver.NewComponent(client.Scheme()),
+			func(o runtime.Object) (parent reconciler.ResourceOwner, config interface{}) {
+				receiver := o.(*monitoringv1alpha1.Receiver)
+				return receiver, nil
+			},
+			reconciler.NativeReconcilerWithScheme(client.Scheme()),
+		),
+	}
+}
 
 // ReceiverReconciler reconciles a Receiver object
 type ReceiverReconciler struct {
-	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	*reconciler.NativeReconciler
 }
 
 // +kubebuilder:rbac:groups=monitoring.banzaicloud.io,resources=receivers,verbs=get;list;watch;create;update;patch;delete
@@ -46,31 +54,21 @@ type ReceiverReconciler struct {
 
 func (r *ReceiverReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	result := ctrl.Result{}
-	log := r.Log.WithValues("receivers", req.NamespacedName)
 
-	receivers := &monitoringv1alpha1.Receiver{}
-	err := r.Client.Get(ctx, req.NamespacedName, receivers)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return result, nil
-		}
-		return result, err
-	}
-	receiverReconciler := resources.NewReceiverReconciler(receivers, reconciler.NewGenericReconciler(r.Client, log, reconciler.ReconcilerOpts{}))
-
-	reconcilers := []resources.ComponentReconciler{
-		receiver.New(receiverReconciler).Reconcile,
+	receiver := &monitoringv1alpha1.Receiver{}
+	if err := r.Client.Get(ctx, req.NamespacedName, receiver); err != nil {
+		return result, client.IgnoreNotFound(err)
 	}
 
-	return resources.RunReconcilers(reconcilers)
+	res, err := r.NativeReconciler.Reconcile(receiver)
+	if res != nil {
+		result = *res
+	}
+	return result, err
 }
 
 func (r *ReceiverReconciler) SetupWithManager(mgr ctrl.Manager) (controller.Controller, error) {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&monitoringv1alpha1.Receiver{}).
-		Owns(&corev1.Service{}).
-		Owns(&netv1.Ingress{}).
-		Owns(&appsv1.StatefulSet{}).
-		Owns(&v1.ConfigMap{}).
-		Build(r)
+	b := ctrl.NewControllerManagedBy(mgr)
+	r.NativeReconciler.RegisterWatches(b)
+	return b.Build(r)
 }

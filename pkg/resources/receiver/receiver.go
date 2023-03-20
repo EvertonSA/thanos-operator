@@ -18,90 +18,58 @@ import (
 	"github.com/banzaicloud/operator-tools/pkg/utils"
 	"github.com/banzaicloud/thanos-operator/pkg/resources"
 	"github.com/banzaicloud/thanos-operator/pkg/sdk/api/v1alpha1"
-	"github.com/imdario/mergo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type Receiver struct {
-	*resources.ReceiverReconciler
-}
-
-type receiverInstance struct {
-	*Receiver
-	receiverGroup *v1alpha1.ReceiverGroup
-}
-
-func (r *receiverInstance) getName(suffix ...string) string {
-	name := r.QualifiedName(v1alpha1.ReceiverName)
-	if len(suffix) > 0 && suffix[0] != "" {
-		name = name + "-" + suffix[0]
+func extend(r *v1alpha1.Receiver) receiverExt {
+	return receiverExt{
+		Receiver: r,
 	}
-	return name
 }
 
-func (r *receiverInstance) getVolumeMeta(name string) metav1.ObjectMeta {
-	meta := r.GetNameMeta(name, "")
-	meta.OwnerReferences = []metav1.OwnerReference{
-		{
-			APIVersion: r.APIVersion,
-			Kind:       r.Kind,
-			Name:       r.Name,
-			UID:        r.UID,
-			Controller: utils.BoolPointer(true),
-		},
+type receiverExt struct {
+	*v1alpha1.Receiver
+}
+
+func (r receiverExt) getLabels() resources.Labels {
+	return resources.Labels{
+		resources.ManagedByLabel: r.Name,
+		resources.NameLabel:      v1alpha1.ReceiverName,
 	}
+}
+
+func (r receiverExt) getMeta(suffix ...string) metav1.ObjectMeta {
+	meta := r.GetObjectMeta(r.getName(suffix...))
+	return meta
+}
+
+func (r receiverExt) getMetaWithLabels() metav1.ObjectMeta {
+	meta := r.getMeta()
 	meta.Labels = r.getLabels()
 	return meta
 }
 
-func (r *receiverInstance) getMeta(suffix ...string) metav1.ObjectMeta {
-	nameSuffix := ""
-	if len(suffix) > 0 {
-		nameSuffix = suffix[0]
-	}
-	meta := r.GetNameMeta(r.getName(nameSuffix), "")
-	meta.OwnerReferences = []metav1.OwnerReference{
-		{
-			APIVersion: r.APIVersion,
-			Kind:       r.Kind,
-			Name:       r.Name,
-			UID:        r.UID,
-			Controller: utils.BoolPointer(true),
+func (r receiverExt) getName(suffix ...string) string {
+	return resources.QualifiedName(append([]string{r.Name, v1alpha1.ReceiverName}, suffix...)...)
+}
+
+func (r receiverExt) GetObjectMeta(name string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      name,
+		Namespace: r.Namespace,
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: r.APIVersion,
+				Kind:       r.Kind,
+				Name:       r.Name,
+				UID:        r.UID,
+				Controller: utils.BoolPointer(true),
+			},
 		},
 	}
-	meta.Labels = r.getLabels()
-	return meta
 }
 
-func New(reconciler *resources.ReceiverReconciler) *Receiver {
-	return &Receiver{
-		reconciler,
-	}
-}
-
-func (r *Receiver) resourceFactory() ([]resources.Resource, error) {
-	var resourceList []resources.Resource
-
-	resourceList = append(resourceList, (&receiverInstance{r, nil}).commonService)
-
-	for _, group := range r.Spec.ReceiverGroups {
-		err := mergo.Merge(&group, v1alpha1.DefaultReceiverGroup)
-		if err != nil {
-			return nil, err
-		}
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).statefulset)
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).hashring)
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).service)
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).serviceMonitor)
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).ingressGRPC)
-		resourceList = append(resourceList, (&receiverInstance{r, group.DeepCopy()}).ingressHTTP)
-	}
-
-	return resourceList, nil
-}
-
-//func (r *Receiver) GetServiceURLS() []string {
+//func (r receiverExt) GetServiceURLS() []string {
 //	var urls []string
 //	for _, endpoint := range r.StoreEndpoints {
 //		urls = append(urls, (&receiverInstance{r, endpoint.DeepCopy()}).getSvc())
@@ -109,25 +77,28 @@ func (r *Receiver) resourceFactory() ([]resources.Resource, error) {
 //	return urls
 //}
 
-func (r *Receiver) Reconcile() (*reconcile.Result, error) {
-	resources, err := r.resourceFactory()
-	if err != nil {
-		return nil, err
-	}
-	return r.ReconcileResources(resources)
+type receiverInstance struct {
+	receiverExt
+	receiverGroup *v1alpha1.ReceiverGroup
+}
+
+func (r *receiverInstance) getVolumeMeta(name string) metav1.ObjectMeta {
+	meta := r.GetObjectMeta(name)
+	meta.Labels = r.getLabels()
+	return meta
+}
+
+func (r *receiverInstance) getMeta(suffix ...string) metav1.ObjectMeta {
+	meta := r.receiverExt.getMeta(suffix...)
+	meta.Labels = r.getLabels()
+	return meta
 }
 
 func (r *receiverInstance) getLabels() resources.Labels {
-	groupLabels := resources.Labels{}
+	labels := r.receiverExt.getLabels()
 	if r.receiverGroup != nil {
-		groupLabels["receiverGroup"] = r.receiverGroup.Name
+		labels["receiverGroup"] = r.receiverGroup.Name
 	}
-	labels := resources.Labels{
-		resources.NameLabel: v1alpha1.ReceiverName,
-	}.Merge(
-		r.GetCommonLabels(),
-		groupLabels,
-	)
 	return labels
 }
 

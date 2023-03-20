@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/banzaicloud/operator-tools/pkg/utils"
 	"github.com/banzaicloud/thanos-operator/pkg/resources"
 	"github.com/banzaicloud/thanos-operator/pkg/resources/rule"
 	"github.com/banzaicloud/thanos-operator/pkg/resources/store"
@@ -57,16 +58,17 @@ func (q *Query) Reconcile() (*reconcile.Result, error) {
 			q.serviceMonitor,
 			q.ingressHTTP,
 			q.ingressGRPC,
+			q.grafanaDatasource,
 		})
 }
 
 func (q *Query) getLabels() resources.Labels {
-	labels := resources.Labels{
-		resources.NameLabel: v1alpha1.QueryName,
-	}.Merge(
+	return utils.MergeLabels(
+		resources.Labels{
+			resources.NameLabel: v1alpha1.QueryName,
+		},
 		q.GetCommonLabels(),
 	)
-	return labels
 }
 
 func (q *Query) getName(suffix ...string) string {
@@ -89,12 +91,8 @@ func (q *Query) GetHTTPServiceURL() string {
 	return fmt.Sprintf("http://%s:%d", q.GetHTTPService(), resources.GetPort(q.Thanos.Spec.Query.HttpAddress))
 }
 
-func (q *Query) getMeta(name string, params ...string) metav1.ObjectMeta {
-	namespace := ""
-	if len(params) > 0 {
-		namespace = params[0]
-	}
-	meta := q.GetObjectMeta(name, namespace)
+func (q *Query) getMeta(name string) metav1.ObjectMeta {
+	meta := q.GetObjectMeta(name)
 	meta.Labels = q.getLabels()
 	return meta
 }

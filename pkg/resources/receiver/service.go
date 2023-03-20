@@ -24,91 +24,65 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (r *receiverInstance) service() (runtime.Object, reconciler.DesiredState, error) {
-	if r.receiverGroup != nil {
-		receiver := r.receiverGroup
-		service := &corev1.Service{
-			ObjectMeta: receiver.MetaOverrides.Merge(r.getMeta(receiver.Name)),
-			Spec: corev1.ServiceSpec{
-				Ports: []corev1.ServicePort{
-					{
-						Name:     "grpc",
-						Protocol: corev1.ProtocolTCP,
-						Port:     resources.GetPort(receiver.GRPCAddress),
-						TargetPort: intstr.IntOrString{
-							Type:   intstr.String,
-							StrVal: "grpc",
-						},
-					},
-					{
-						Name:     "http",
-						Protocol: corev1.ProtocolTCP,
-						Port:     resources.GetPort(receiver.HTTPAddress),
-						TargetPort: intstr.IntOrString{
-							Type:   intstr.String,
-							StrVal: "http",
-						},
-					},
-					{
-						Name:     "remote-write",
-						Protocol: corev1.ProtocolTCP,
-						Port:     resources.GetPort(receiver.RemoteWriteAddress),
-						TargetPort: intstr.IntOrString{
-							Type:   intstr.String,
-							StrVal: "remote-write",
-						},
-					},
-				},
-				Selector:  r.getLabels(),
-				ClusterIP: corev1.ClusterIPNone,
-				Type:      corev1.ServiceTypeClusterIP,
-			},
-		}
-		if receiver.ServiceOverrides != nil {
-			err := merge.Merge(service, receiver.ServiceOverrides)
-			if err != nil {
-				return service, reconciler.StatePresent, errors.WrapIf(err, "unable to merge overrides to base object")
-			}
-		}
-		return service, reconciler.StatePresent, nil
-	}
-	delete := &corev1.Service{
-		ObjectMeta: r.getMeta(r.receiverGroup.Name),
-	}
-	return delete, reconciler.StateAbsent, nil
-}
-
-func (r *receiverInstance) commonService() (runtime.Object, reconciler.DesiredState, error) {
+func (r receiverInstance) service() (runtime.Object, reconciler.DesiredState, error) {
 	service := &corev1.Service{
-		ObjectMeta: r.getMeta(),
+		ObjectMeta: r.receiverGroup.MetaOverrides.Merge(r.getMeta(r.receiverGroup.Name)),
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
 				{
-					Name:     "grpc",
-					Protocol: corev1.ProtocolTCP,
-					Port:     10907,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "grpc",
-					},
+					Name:       "grpc",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(resources.GetPort(r.receiverGroup.GRPCAddress)),
+					TargetPort: intstr.FromString("grpc"),
 				},
 				{
-					Name:     "http",
-					Protocol: corev1.ProtocolTCP,
-					Port:     10909,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "http",
-					},
+					Name:       "http",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(resources.GetPort(r.receiverGroup.HTTPAddress)),
+					TargetPort: intstr.FromString("http"),
 				},
 				{
-					Name:     "remote-write",
-					Protocol: corev1.ProtocolTCP,
-					Port:     10908,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.String,
-						StrVal: "remote-write",
-					},
+					Name:       "remote-write",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(resources.GetPort(r.receiverGroup.RemoteWriteAddress)),
+					TargetPort: intstr.FromString("remote-write"),
+				},
+			},
+			Selector:  r.getLabels(),
+			ClusterIP: corev1.ClusterIPNone,
+			Type:      corev1.ServiceTypeClusterIP,
+		},
+	}
+	if r.receiverGroup.ServiceOverrides != nil {
+		if err := merge.Merge(service, r.receiverGroup.ServiceOverrides); err != nil {
+			return service, reconciler.StatePresent, errors.WrapIf(err, "unable to merge overrides to base object")
+		}
+	}
+	return service, reconciler.StatePresent, nil
+}
+
+func (r receiverExt) commonService() (runtime.Object, reconciler.DesiredState, error) {
+	service := &corev1.Service{
+		ObjectMeta: r.getMetaWithLabels(),
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "grpc",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       10907,
+					TargetPort: intstr.FromString("grpc"),
+				},
+				{
+					Name:       "http",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       10909,
+					TargetPort: intstr.FromString("http"),
+				},
+				{
+					Name:       "remote-write",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       10908,
+					TargetPort: intstr.FromString("remote-write"),
 				},
 			},
 			Selector: r.getLabels(),

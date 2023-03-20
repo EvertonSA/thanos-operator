@@ -232,12 +232,16 @@ spec:
                       healthCheckNodePort:
                         format: int32
                         type: integer
+                      internalTrafficPolicy:
+                        type: string
                       ipFamilies:
                         items:
                           type: string
                         type: array
                         x-kubernetes-list-type: atomic
                       ipFamilyPolicy:
+                        type: string
+                      loadBalancerClass:
                         type: string
                       loadBalancerIP:
                         type: string
@@ -280,6 +284,7 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                        x-kubernetes-map-type: atomic
                       sessionAffinity:
                         type: string
                       sessionAffinityConfig:
@@ -291,10 +296,6 @@ spec:
                                 type: integer
                             type: object
                         type: object
-                      topologyKeys:
-                        items:
-                          type: string
-                        type: array
                       type:
                         type: string
                     type: object
